@@ -3,6 +3,11 @@ import mediapipe as mp
 import math
 import time
 import numpy as np
+import os
+from datetime import datetime
+
+screencap = None
+
 
 runer = False
 # Initialize Mediapipe Face Mesh
@@ -345,7 +350,19 @@ while True:
         if remaining_time == 0:
             countdown_done = True
             countdown_started = False
+            screencap = frame.copy()
             flash_alpha = 1.0
+                        # Create 'pictures' folder if it doesn't exist
+            if not os.path.exists('pictures'):
+                os.makedirs('pictures')
+            
+            # Generate unique filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"pictures/screencap_{timestamp}.png"
+            
+            # Save the screencap
+            cv2.imwrite(filename, screencap)
+            print(f"Screencap saved as {filename}")
 
     cv2.imshow("Annotated Feed", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
     cv2.imshow("Raw Feed", cv2.cvtColor(raw_feed_image, cv2.COLOR_RGB2BGR))
