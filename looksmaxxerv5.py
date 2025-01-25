@@ -224,6 +224,21 @@ while True:
             2,
         )
 
+        if results.multi_face_landmarks:
+            face_landmarks = results.multi_face_landmarks[0]
+            
+            # Get the coordinates of the eyes
+            left_eye = face_landmarks.landmark[33]
+            right_eye = face_landmarks.landmark[263]
+            
+            # Calculate the average y-coordinate of the eyes
+            avg_y = (left_eye.y + right_eye.y) / 2
+            
+            # Check if the person is looking at the camera
+            if avg_y > 0.45:  # Adjust this threshold as needed
+                cv2.putText(annotated_image, "Look at the camera!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+
         if current_time - last_light_check_time >= light_check_interval:
             last_light_check_time = current_time
             print("Average RGB light levels (out of 255) for each landmark:")
