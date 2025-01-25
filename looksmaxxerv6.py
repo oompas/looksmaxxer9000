@@ -23,7 +23,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Start video capture from the second webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 if not cap.isOpened():
     print("Error: Could not open webcam.")
     exit()
@@ -316,41 +316,9 @@ while True:
                 x, y = int(landmark.x * frame_width), int(landmark.y * frame_height)
                 avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
                 # print(f"Landmark ({x}, {y}): Total={(avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3:.0f}, R={avg_rgb[2]:.0f}, G={avg_rgb[1]:.0f}, B={avg_rgb[0]:.0f}")
-
-        # Calculate 50% of the face rectangle size
-        overlay_width = int(0.5 * (x_max - x_min))
-        overlay_height = int(0.5 * (y_max - y_min))
-
-        # Resize the overlay image to 50% of the face rectangle size
-        overlay_resized = cv2.resize(overlay_image, (overlay_width, overlay_height))
-
         # Calculate the position to center the overlay on the face
         x_start = x_min + (x_max - x_min) // 4
         y_start = y_min + (y_max - y_min) // 4
-
-        # Ensure the overlay doesn't go out of frame bounds
-        x_end = min(frame_width, x_start + overlay_width)
-        y_end = min(frame_height, y_start + overlay_height)
-
-        # Adjust overlay_resized if it goes out of bounds
-        overlay_resized = overlay_resized[:y_end - y_start, :x_end - x_start]
-
-        # Apply the overlay
-        alpha = overlay_resized[:, :, 3] / 255.0
-        try:
-            for c in range(3):
-                raw_feed_image[y_start:y_end, x_start:x_end, c] = (
-                    alpha * overlay_resized[:, :, c] +
-                    (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
-                )
-
-            for c in range(3):
-                raw_feed_image[y_start:y_end, x_start:x_end, c] = (
-                    alpha * overlay_resized[:, :, c] + (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
-                )
-        except:
-            pass
-
     if flash_image.shape[:2] != raw_feed_image.shape[:2]:
         flash_image = cv2.resize(flash_image, (raw_feed_image.shape[1], raw_feed_image.shape[0]))
 
