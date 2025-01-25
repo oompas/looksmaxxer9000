@@ -5,6 +5,7 @@ import time
 import numpy as np
 import os
 from datetime import datetime
+from enhance_image import gray_world_balance, upscale, blur_background
 
 screencap = None
 
@@ -22,7 +23,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Start video capture from the second webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Error: Could not open webcam.")
     exit()
@@ -310,11 +311,11 @@ while True:
 
         if current_time - last_light_check_time >= light_check_interval:
             last_light_check_time = current_time
-            print("Average RGB light levels (out of 255) for each landmark:")
+            # print("Average RGB light levels (out of 255) for each landmark:")
             for landmark in face_landmarks.landmark:
                 x, y = int(landmark.x * frame_width), int(landmark.y * frame_height)
                 avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
-                print(f"Landmark ({x}, {y}): Total={(avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3:.0f}, R={avg_rgb[2]:.0f}, G={avg_rgb[1]:.0f}, B={avg_rgb[0]:.0f}")
+                # print(f"Landmark ({x}, {y}): Total={(avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3:.0f}, R={avg_rgb[2]:.0f}, G={avg_rgb[1]:.0f}, B={avg_rgb[0]:.0f}")
 
         # Calculate 50% of the face rectangle size
         overlay_width = int(0.5 * (x_max - x_min))
@@ -362,7 +363,7 @@ while True:
                 flash_alpha * flash_image[:, :, c] + (1 - flash_alpha) * annotated_image[:, :, c]
             )
         flash_alpha -= 0.1
-
+    current_time = time.time()
     if dot_x is None and dot_y is None:
         if arrows_not_present_start_time is None:
             arrows_not_present_start_time = current_time
@@ -424,6 +425,7 @@ while True:
             # Generate unique filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"pictures/screencap_{timestamp}.png"
+            screencap = upscale(screencap, 2)
             
             # Save the screencap
             cv2.imwrite(filename, screencap)
