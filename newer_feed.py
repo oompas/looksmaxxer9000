@@ -14,7 +14,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Start video capture from the second webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 if not cap.isOpened():
     print("Error: Could not open webcam.")
@@ -56,6 +56,8 @@ green_rectangle_time = None
 # Initialize timer for light level checks
 last_light_check_time = time.time()
 light_check_interval = 10  # Check every 10 seconds
+
+avg_rgb = []
 
 while True:
     # Capture frame
@@ -103,6 +105,61 @@ while True:
         num_landmarks = len(face_landmarks.landmark)
         mesh_center_x //= num_landmarks
         mesh_center_y //= num_landmarks
+        #print(f"Average Mesh Center ({mesh_center_x}, {mesh_center_y})")
+
+        # Top 1/3 of face lighting adjustments
+        #y_min = min(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
+        #y_max = max(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
+        #upper_face_threshold = y_min + (y_max - y_min) / 3
+        #print(f"Upper Third Threshold: {upper_face_threshold}")
+
+        # Calculate average lighting, distance, and angle of landmark points to mesh center
+        landmark_data = []
+        for landmark in face_landmarks.landmark:
+            x = int(landmark.x * frame_width)
+            y = int(landmark.y * frame_height)
+
+            avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
+            total_avg_rgb = (avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3
+            distance = math.sqrt((x - mesh_center_x)**2 + (y - mesh_center_y)**2)
+            angle_radians = math.atan2(y - mesh_center_y, x - mesh_center_x)
+            #angle_degrees = math.degrees(math.atan2(y - mesh_center_y, x - mesh_center_x))
+
+            # Top 1/3 of face lighting adjustments
+            #if y <= upper_face_threshold:
+            #    distance += 100
+            
+            landmark_data.append((x, y, distance, angle_radians, total_avg_rgb))
+
+        # Create vectors weighted proportionally to its distance and lighting intensity
+        weighted_x_sum = 0
+        weighted_y_sum = 0
+        #print("Landmark data (x, y, distance, angle, total_light):")
+        for x, y, distance, angle_radians, total_avg_rgb in landmark_data:
+            #print(f"Landmark ({x}, {y}): Distance = {distance:.2f}, Angle = {angle:.1f}°, Total Avg RGB = {total_avg_rgb:.0f}")
+            weighted_intensity = distance * total_avg_rgb
+            vector_x = weighted_intensity * math.cos(angle_radians)
+            vector_y = weighted_intensity * math.sin(angle_radians)
+
+            weighted_x_sum += vector_x
+            weighted_y_sum += vector_y
+
+        overall_angle = math.degrees(math.atan2(weighted_y_sum, weighted_x_sum))
+        #print(f"Overall Lighting Angle: {overall_angle:.2f}°")
+
+        # Draw the lighting intensity angle
+        arrow_length = 50
+        arrow_end_x = int(mesh_center_x + arrow_length * math.cos(math.radians(overall_angle)))
+        arrow_end_y = int(mesh_center_y + arrow_length * math.sin(math.radians(overall_angle)))
+
+        cv2.arrowedLine(
+            annotated_image,
+            (mesh_center_x, mesh_center_y),
+            (arrow_end_x, arrow_end_y),
+            (255, 255, 0),
+            2,
+            tipLength=0.2
+        )
 
         # Calculate face bounding box size and percentage of screen
         face_width = x_max - x_min
@@ -181,7 +238,7 @@ while True:
         angle_text_color = angle_to_color(head_angle)
 
         # Display head angle above the bounding box with dynamic color
-        head_angle_text = f"Angle: {head_angle:.2f}"
+        head_angle_text = f"Angle: {head_angle:.2f}, Overall: {overall_angle:.2f}"
         cv2.putText(
             annotated_image,
             head_angle_text,
@@ -192,17 +249,17 @@ while True:
             2,
         )
 
-        # Check the average RGB light levels every 10 seconds
-        current_time = time.time()
-        if current_time - last_light_check_time >= light_check_interval:
-            last_light_check_time = current_time
-            print("Average RGB light levels (out of 255) for each landmark:")
+        # # Check the average RGB light levels every 10 seconds
+        # current_time = time.time()
+        # if current_time - last_light_check_time >= light_check_interval:
+        #     last_light_check_time = current_time
+        #     print("Average RGB light levels (out of 255) for each landmark:")
 
-            for landmark in face_landmarks.landmark:
-                x = int(landmark.x * frame_width)
-                y = int(landmark.y * frame_height)
-                avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
-                print(f"Landmark ({x}, {y}): Total={(avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3:.0f}, R={avg_rgb[2]:.0f}, G={avg_rgb[1]:.0f}, B={avg_rgb[0]:.0f}")
+        #     for landmark in face_landmarks.landmark:
+        #         x = int(landmark.x * frame_width)
+        #         y = int(landmark.y * frame_height)
+        #         avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
+        #         print(f"Landmark ({x}, {y}): Total={(avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3:.0f}, R={avg_rgb[2]:.0f}, G={avg_rgb[1]:.0f}, B={avg_rgb[0]:.0f}")
 
     # Draw the guiding dot if needed
     if dot_x is not None and dot_y is not None:
