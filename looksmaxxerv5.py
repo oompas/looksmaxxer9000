@@ -4,6 +4,7 @@ import math
 import time
 import numpy as np
 
+runer = False
 # Initialize Mediapipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
@@ -308,11 +309,21 @@ while True:
                           arrows_not_present_start_time is not None and
                           good_angle_start_time is not None)
 
-    if all_conditions_met:
+    if cv2.waitKey(1) & 0xFF == ord("y"):
+        runer = True
+
+    if all_conditions_met and not runer:
         elapsed_time = min(current_time - green_rectangle_start_time,
                            current_time - arrows_not_present_start_time,
                            current_time - good_angle_start_time)
+        
 
+        if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
+            countdown_started = True
+            countdown_start_time = current_time
+    elif runer:
+        elapsed_time = current_time
+        
         if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
             countdown_started = True
             countdown_start_time = current_time
