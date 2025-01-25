@@ -131,7 +131,7 @@ while True:
         vertical_center_start = int(frame_height * 0.45)
         vertical_center_end = int(frame_height * 0.52)
 
-        rectangle_color = (0, 255, 0) if (20 <= face_percentage <= 24 and
+        rectangle_color = (0, 255, 0) if (15 <= face_percentage <= 24 and
                                           vertical_center_start <= face_center_y <= vertical_center_end) else (255, 0, 0)
         cv2.rectangle(annotated_image, (x_min, y_min), (x_max, y_max), rectangle_color, 2)
 
@@ -154,7 +154,7 @@ while True:
             arrow_image = up_arrow
 
 
-        if face_percentage < 20:
+        if face_percentage < 15:
             cv2.putText(annotated_image, "Approach camera", (frame_width - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         elif face_percentage > 24:
             cv2.putText(annotated_image, "Move away from camera", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
@@ -211,7 +211,7 @@ while True:
 
         angle_text_color = angle_to_color(head_angle)
         head_angle_text = f"Angle: {head_angle:.2f}"
-        if -2 <= head_angle <= 2:
+        if -2.5 <= head_angle <= 2.5:
             head_angle_text += " Good"
 
         cv2.putText(
@@ -232,15 +232,32 @@ while True:
                 avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
                 print(f"Landmark ({x}, {y}): Total={(avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3:.0f}, R={avg_rgb[2]:.0f}, G={avg_rgb[1]:.0f}, B={avg_rgb[0]:.0f}")
 
-        overlay_height, overlay_width = overlay_image.shape[:2]
-        center_x, center_y = (x_min + x_max) // 2, (y_min + y_max) // 2
-        x_start = max(0, center_x - overlay_width // 2)
-        y_start = max(0, center_y - overlay_height // 2)
+        # Calculate 50% of the face rectangle size
+        overlay_width = int(0.5 * (x_max - x_min))
+        overlay_height = int(0.5 * (y_max - y_min))
+
+        # Resize the overlay image to 50% of the face rectangle size
+        overlay_resized = cv2.resize(overlay_image, (overlay_width, overlay_height))
+
+        # Calculate the position to center the overlay on the face
+        x_start = x_min + (x_max - x_min) // 4
+        y_start = y_min + (y_max - y_min) // 4
+
+        # Ensure the overlay doesn't go out of frame bounds
         x_end = min(frame_width, x_start + overlay_width)
         y_end = min(frame_height, y_start + overlay_height)
 
-        overlay_resized = cv2.resize(overlay_image, (x_end - x_start, y_end - y_start))
+        # Adjust overlay_resized if it goes out of bounds
+        overlay_resized = overlay_resized[:y_end - y_start, :x_end - x_start]
+
+        # Apply the overlay
         alpha = overlay_resized[:, :, 3] / 255.0
+        for c in range(3):
+            raw_feed_image[y_start:y_end, x_start:x_end, c] = (
+                alpha * overlay_resized[:, :, c] +
+                (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
+            )
+
 
         for c in range(3):
             raw_feed_image[y_start:y_end, x_start:x_end, c] = (
