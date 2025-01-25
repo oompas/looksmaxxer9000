@@ -135,10 +135,9 @@ while True:
         #print(f"Average Mesh Center ({mesh_center_x}, {mesh_center_y})")
 
         # Top 1/3 of face lighting adjustments
-        #y_min = min(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
-        #y_max = max(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
-        #upper_face_threshold = y_min + (y_max - y_min) / 3
-        #print(f"Upper Third Threshold: {upper_face_threshold}")
+        y_min = min(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
+        y_max = max(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
+        upper_face_threshold = y_min + (y_max - y_min) / 3
 
         # Calculate average lighting, distance, and angle of landmark points to mesh center
         landmark_data = []
@@ -153,8 +152,8 @@ while True:
             #angle_degrees = math.degrees(math.atan2(y - mesh_center_y, x - mesh_center_x))
 
             # Top 1/3 of face lighting adjustments
-            #if y <= upper_face_threshold:
-            #    distance += 100
+            if y <= upper_face_threshold:
+                distance += 20
             
             landmark_data.append((x, y, distance, angle_radians, total_avg_rgb))
 
@@ -337,17 +336,19 @@ while True:
 
         # Apply the overlay
         alpha = overlay_resized[:, :, 3] / 255.0
-        for c in range(3):
-            raw_feed_image[y_start:y_end, x_start:x_end, c] = (
-                alpha * overlay_resized[:, :, c] +
-                (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
-            )
+        try:
+            for c in range(3):
+                raw_feed_image[y_start:y_end, x_start:x_end, c] = (
+                    alpha * overlay_resized[:, :, c] +
+                    (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
+                )
 
-
-        for c in range(3):
-            raw_feed_image[y_start:y_end, x_start:x_end, c] = (
-                alpha * overlay_resized[:, :, c] + (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
-            )
+            for c in range(3):
+                raw_feed_image[y_start:y_end, x_start:x_end, c] = (
+                    alpha * overlay_resized[:, :, c] + (1 - alpha) * raw_feed_image[y_start:y_end, x_start:x_end, c]
+                )
+        except:
+            pass
 
     if flash_image.shape[:2] != raw_feed_image.shape[:2]:
         flash_image = cv2.resize(flash_image, (raw_feed_image.shape[1], raw_feed_image.shape[0]))
