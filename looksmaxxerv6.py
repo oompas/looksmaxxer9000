@@ -109,7 +109,10 @@ while True:
     head_angle_text = ""
 
     if results.multi_face_landmarks:
+        # Process the first detected face
         face_landmarks = results.multi_face_landmarks[0]
+
+        # Initialize bounding box and calculate mesh center
         x_min = y_min = float('inf')
         x_max = y_max = float('-inf')
         mesh_center_x, mesh_center_y = 0, 0
@@ -121,12 +124,70 @@ while True:
             x_max, y_max = max(x_max, x), max(y_max, y)
             mesh_center_x += x
             mesh_center_y += y
+
+            # Draw green dots for each landmark
             cv2.circle(annotated_image, (x, y), 1, (0, 255, 0), -1)
 
+        # Calculate the average center of the mesh
         num_landmarks = len(face_landmarks.landmark)
         mesh_center_x //= num_landmarks
         mesh_center_y //= num_landmarks
+        #print(f"Average Mesh Center ({mesh_center_x}, {mesh_center_y})")
 
+        # Top 1/3 of face lighting adjustments
+        #y_min = min(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
+        #y_max = max(int(landmark.y * frame_height) for landmark in face_landmarks.landmark)
+        #upper_face_threshold = y_min + (y_max - y_min) / 3
+        #print(f"Upper Third Threshold: {upper_face_threshold}")
+
+        # Calculate average lighting, distance, and angle of landmark points to mesh center
+        landmark_data = []
+        for landmark in face_landmarks.landmark:
+            x = int(landmark.x * frame_width)
+            y = int(landmark.y * frame_height)
+
+            avg_rgb = calculate_average_rgb(frame, x, y, radius=10)
+            total_avg_rgb = (avg_rgb[0] + avg_rgb[1] + avg_rgb[2])/3
+            distance = math.sqrt((x - mesh_center_x)**2 + (y - mesh_center_y)**2)
+            angle_radians = math.atan2(y - mesh_center_y, x - mesh_center_x)
+            #angle_degrees = math.degrees(math.atan2(y - mesh_center_y, x - mesh_center_x))
+
+            # Top 1/3 of face lighting adjustments
+            #if y <= upper_face_threshold:
+            #    distance += 100
+            
+            landmark_data.append((x, y, distance, angle_radians, total_avg_rgb))
+
+        # Create vectors weighted proportionally to its distance and lighting intensity
+        weighted_x_sum = 0
+        weighted_y_sum = 0
+        #print("Landmark data (x, y, distance, angle, total_light):")
+        for x, y, distance, angle_radians, total_avg_rgb in landmark_data:
+            #print(f"Landmark ({x}, {y}): Distance = {distance:.2f}, Angle = {angle:.1f}°, Total Avg RGB = {total_avg_rgb:.0f}")
+            weighted_intensity = distance * total_avg_rgb
+            vector_x = weighted_intensity * math.cos(angle_radians)
+            vector_y = weighted_intensity * math.sin(angle_radians)
+
+            weighted_x_sum += vector_x
+            weighted_y_sum += vector_y
+
+        overall_angle = math.degrees(math.atan2(weighted_y_sum, weighted_x_sum))
+        #print(f"Overall Lighting Angle: {overall_angle:.2f}°")
+
+        # Draw the lighting intensity angle
+        arrow_length = 50
+        arrow_end_x = int(mesh_center_x + arrow_length * math.cos(math.radians(overall_angle)))
+        arrow_end_y = int(mesh_center_y + arrow_length * math.sin(math.radians(overall_angle)))
+        cv2.arrowedLine(
+            annotated_image,
+            (mesh_center_x, mesh_center_y),
+            (arrow_end_x, arrow_end_y),
+            (255, 255, 0),
+            2,
+            tipLength=0.2
+        )
+
+        # Calculate face bounding box size and percentage of screen
         face_width = x_max - x_min
         face_height = y_max - y_min
         face_area = face_width * face_height
@@ -359,11 +420,10 @@ while True:
             # Generate unique filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"pictures/screencap_{timestamp}.png"
-            # Put image enhancement functions
+            
             # Save the screencap
             cv2.imwrite(filename, screencap)
             print(f"Screencap saved as {filename}")
-            
 
     cv2.imshow("Annotated Feed", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
     cv2.imshow("Raw Feed", cv2.cvtColor(raw_feed_image, cv2.COLOR_RGB2BGR))
