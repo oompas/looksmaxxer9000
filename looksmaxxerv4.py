@@ -123,7 +123,7 @@ while True:
         vertical_center_start = int(frame_height * 0.45)
         vertical_center_end = int(frame_height * 0.52)
 
-        rectangle_color = (0, 255, 0) if (20 <= face_percentage <= 28 and
+        rectangle_color = (0, 255, 0) if (20 <= face_percentage <= 24 and
                                           vertical_center_start <= face_center_y <= vertical_center_end) else (255, 0, 0)
         cv2.rectangle(annotated_image, (x_min, y_min), (x_max, y_max), rectangle_color, 2)
 
@@ -143,7 +143,7 @@ while True:
 
         if face_percentage < 20:
             cv2.putText(annotated_image, "Approach camera", (frame_width - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-        elif face_percentage > 28:
+        elif face_percentage > 24:
             cv2.putText(annotated_image, "Move away from camera", (frame_width - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         middle_15_percent_start = frame_width * 0.425
