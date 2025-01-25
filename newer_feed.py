@@ -14,7 +14,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Start video capture from the second webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 if not cap.isOpened():
     print("Error: Could not open webcam.")
@@ -148,9 +148,12 @@ while True:
         #print(f"Overall Lighting Angle: {overall_angle:.2f}°")
 
         # Draw the lighting intensity angle
-        arrow_length = 50
-        arrow_end_x = int(mesh_center_x + arrow_length * math.cos(math.radians(overall_angle)))
-        arrow_end_y = int(mesh_center_y + arrow_length * math.sin(math.radians(overall_angle)))
+        try:
+            arrow_length = 50
+            arrow_end_x = int(mesh_center_x + arrow_length * math.cos(math.radians(overall_angle)))
+            arrow_end_y = int(mesh_center_y + arrow_length * math.sin(math.radians(overall_angle)))
+        except:
+            pass
 
         cv2.arrowedLine(
             annotated_image,
