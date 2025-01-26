@@ -12,9 +12,9 @@ The real question is what [_doesn't_](https://www.youtube.com/shorts/aeHgW4a5CJM
 
 ## How we built it ⚙️
 
-We used key functionality from the cv2 library to build upon. None of what we did is supposed to be allowed... Anyways, we have like 30 images stacked together for the output. First, we built a face mesh comprised of landmark points to detect and map various facial features. Then, we built a lot of other stuff that I just can't be bothered to type out – but was pretty awesome!! Guess you gotta check out our demo or download the app to try it out for yourself :p
+We used key functionality from the cv2 library to build upon. None of what we did is supposed to be allowed... Anyways, we have like 30 images stacked together for the output. First, we built a face mesh comprised of landmark points to detect and map various facial features. The face mash detects the angle of the face, if the user's face is properly pointing towards and maintaining eye contact with the camera, and analyzes the distance away from the camera. Our graphic designer made a lot of cool graphics that provide arrow directions to center your face in the frame. Then, we used AI enhancement to improve and upscale images, so even those with "bad" cameras can looksmaxx! Guess you gotta check out our demo or download the app to try it out for yourself :p
 
-We also did some cool math games to figure out what main angle your lighting source is coming from so you can move either it or your camera around to looksmaxx even harder 😤
+We also made some cool math games on the face mesh to detect light vectors and analyze if the lighting conditions and its direction are optimal, so you can move either it or your camera around to looksmaxx even harder 😤
 
 ## Challenges we ran into ⏳
 
