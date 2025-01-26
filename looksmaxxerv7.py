@@ -652,13 +652,13 @@ while True:
                 countdown_start_time = current_time
         elif runer:
             elapsed_time = current_time
-    except:
-        pass
             
         if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
             countdown_started = True
             trigger = True
             countdown_start_time = current_time
+    except:
+        pass
 
     trimber = False
 
@@ -714,7 +714,9 @@ while True:
             screencap = cv2.cvtColor(screencap, cv2.COLOR_BGR2RGB) 
             screencap = crop_image(screencap)  # Crop the image
             # Save the screencap
+
             cv2.imwrite(filename, screencap)
+
             print(f"Screencap saved as {filename}")
 
             actual_image = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
@@ -736,6 +738,10 @@ while True:
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
-
+    if cv2.waitKey(1) & 0xFF == ord("y"):
+        runer = True
+screencap = cv2.cvtColor(screencap, cv2.COLOR_BGR2RGB) 
+cv2.imwrite(filename, screencap)
 cap.release()
 cv2.destroyAllWindows()
+
