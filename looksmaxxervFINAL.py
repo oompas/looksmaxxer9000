@@ -535,7 +535,7 @@ while True:
 
         angle_text_color = angle_to_color(head_angle)
         head_angle_text = f"Angle: {head_angle:.2f}"
-        if -2.5 <= head_angle <= 2.5:
+        if -6 <= head_angle <= 6:
             head_angle_text += " Good"
 
         # Resize the move and back arrow images
