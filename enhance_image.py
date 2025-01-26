@@ -28,7 +28,6 @@ def gray_world_balance(img):
     
     return cv2.merge([b, g, r])
 
-
 def blur_background(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
