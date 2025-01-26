@@ -5,12 +5,49 @@ import time
 import numpy as np
 import os
 from datetime import datetime
+from PIL import Image
 from enhance_image import gray_world_balance, upscale, blur_background
 
 cv2.namedWindow("Raw Feed", cv2.WINDOW_NORMAL)
 
-screencap = None
+def jpg_to_png(input_path, output_path):
+    # Open the JPG image
+    with Image.open(input_path) as img:
+        # Convert and save as PNG
+        img.save(output_path, "PNG")
+    print(f"Converted {input_path} to {output_path}")
+def crop_image(image):
+    """
+    Crops 20% off each side of the input image, then resizes it to be 40% more narrow.
 
+    Parameters:
+        image (numpy.ndarray): Input image.
+
+    Returns:
+        numpy.ndarray: Cropped and resized image.
+    """
+    height, width = image.shape[:2]
+
+    # Calculate cropping dimensions (20% from each side)
+    crop_x = int(0.2 * width)
+    crop_y = int(0.2 * height)
+
+    # Perform cropping
+    cropped_image = image[crop_y:height - crop_y, crop_x:width - crop_x]
+
+    # Calculate new width (60% of the cropped width)
+    new_width = int(cropped_image.shape[1] * 0.6)
+
+    # Resize the image to be 40% more narrow
+    resized_image = cv2.resize(cropped_image, (new_width, cropped_image.shape[0]))
+
+    return resized_image
+
+
+# Example usage
+# crop_image("input.jpg", "output.jpg")
+screencap = None
+fog = False
 runer = False
 # Initialize Mediapipe Face Mesh
 mp_face_mesh = mp.solutions.face_mesh
@@ -23,11 +60,93 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_tracking_confidence=0.5
 )
 
+def overlay_center(background, overlay, scale=1):
+    h, w = overlay.shape[:2]
+    bg_h, bg_w = background.shape[:2]
+    
+    new_h = int(bg_h * scale)
+    new_w = int(new_h * w / h)
+    
+    resized = cv2.resize(overlay, (new_w, new_h))
+    
+    x = (bg_w - new_w) // 2
+    y = (bg_h - new_h) // 2
+    
+    if resized.shape[2] == 4:
+        # Image has an alpha channel
+        alpha_s = resized[:, :, 3] / 255.0
+        alpha_l = 1.0 - alpha_s
+    else:
+        # Image doesn't have an alpha channel, use the entire image
+        alpha_s = np.ones((new_h, new_w))
+        alpha_l = np.zeros((new_h, new_w))
+    
+    for c in range(3):
+        background[y:y+new_h, x:x+new_w, c] = (alpha_s * resized[:, :, c] + 
+                                               alpha_l * background[y:y+new_h, x:x+new_w, c])
+    
+    return background
+
+def overlay_cent(background, overlay, scale=1):
+    h, w = overlay.shape[:2]
+    bg_h, bg_w = background.shape[:2]
+    
+    new_h = int(bg_h * scale)
+    new_w = int(new_h * w / h)
+    
+    resized = cv2.resize(overlay, (new_w, new_h))
+    
+    x = (bg_w - new_w) // 2
+    y = (bg_h - new_h) // 2
+    y_offset = int(bg_h * 0.035)
+    y = max(0, y - y_offset)
+    
+    if resized.shape[2] == 4:
+        # Image has an alpha channel
+        alpha_s = resized[:, :, 3] / 255.0
+        alpha_l = 1.0 - alpha_s
+    else:
+        # Image doesn't have an alpha channel, use the entire image
+        alpha_s = np.ones((new_h, new_w))
+        alpha_l = np.zeros((new_h, new_w))
+    
+    for c in range(3):
+        background[y:y+new_h, x:x+new_w, c] = (alpha_s * resized[:, :, c] + 
+                                               alpha_l * background[y:y+new_h, x:x+new_w, c])
+    
+    return background
+
+def rotate_image(image, angle):
+    height, width = image.shape[:2]
+    center = (width // 2, height // 2)
+    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(image, rotation_matrix, (width, height), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_TRANSPARENT)
+    return rotated
+
+
 # Start video capture from the second webcam
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Error: Could not open webcam.")
     exit()
+
+def overlay_bottom_right(background, overlay, padding=10):
+    h, w = overlay.shape[:2]
+    bg_h, bg_w = background.shape[:2]
+    
+    x = bg_w - w - padding
+    y = bg_h - h - padding
+    
+    alpha_s = overlay[:, :, 3] / 255.0
+    alpha_l = 1.0 - alpha_s
+    
+    for c in range(3):
+        background[y:y+h, x:x+w, c] = (alpha_s * overlay[:, :, c] + 
+                                       alpha_l * background[y:y+h, x:x+w, c])
+    
+    return background
+
+
 
 def switch_blue_red_channels(image_path, output_path):
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
@@ -47,6 +166,39 @@ switch_blue_red_channels("graphics/left_arrow.png", "graphics/left_arrow_switche
 switch_blue_red_channels("graphics/right_arrow.png", "graphics/right_arrow_switched.png")
 switch_blue_red_channels("graphics/up_arrow.png", "graphics/up_arrow_switched.png")
 switch_blue_red_channels("graphics/down_arrow.png", "graphics/down_arrow_switched.png")
+switch_blue_red_channels("graphics/x.png", "graphics/xa.png")
+switch_blue_red_channels("graphics/polaroid.png", "graphics/polaroida.png")
+switch_blue_red_channels("graphics/check.png", "graphics/checka.png")
+# Load and switch channels for camera image
+switch_blue_red_channels("graphics/camera.png", "graphics/camera_switched.png")
+camera_image = cv2.imread("graphics/camera_switched.png", cv2.IMREAD_UNCHANGED)
+polaroid_image = cv2.imread("graphics/polaroida.png", cv2.IMREAD_UNCHANGED)
+if camera_image is None:
+    print("Error: Could not load camera image.")
+    exit()
+if camera_image.shape[2] != 4:
+    print("Error: graphics/camera_switched.png must have an alpha channel.")
+    exit()
+cv2.imread("graphics/camera_image.png", cv2.IMREAD_UNCHANGED)
+x_image = cv2.imread("graphics/xa.png", cv2.IMREAD_UNCHANGED)
+check_image = cv2.imread("graphics/checka.png", cv2.IMREAD_UNCHANGED)
+
+
+# Load countdown images
+countdown_images = {
+    3: cv2.imread("graphics/3.png", cv2.IMREAD_UNCHANGED),
+    2: cv2.imread("graphics/2.png", cv2.IMREAD_UNCHANGED),
+    1: cv2.imread("graphics/1.png", cv2.IMREAD_UNCHANGED)
+}
+
+for i, img in countdown_images.items():
+    if img is None:
+        print(f"Error: Could not load {i}.png")
+        exit()
+    if img.shape[2] != 4:
+        print(f"Error: graphics/{i}.png must have an alpha channel.")
+        exit()
+    countdown_images[i] = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
 
 # Load the overlay images
 overlay_image = cv2.imread("graphics/gandalf_switched.png", cv2.IMREAD_UNCHANGED)
@@ -111,7 +263,11 @@ green_rectangle_time = None
 last_light_check_time = time.time()
 light_check_interval = 10
 dot_scale = 0.1
+camera_slide_start = None
+camera_slide_duration = 1.0  # Duration of slide animation in seconds
+camera_y_offset = 0
 
+trigger = False
 flash_image = np.ones((720, 1280, 3), dtype=np.uint8) * 255
 flash_alpha = 0.0
 
@@ -129,9 +285,33 @@ while True:
 
     annotated_image = frame_rgb.copy()
     raw_feed_image = frame_rgb.copy()
-
+    
     dot_x, dot_y = None, None
     head_angle_text = ""
+        # Resize the camera image
+    camera_height = int(frame_height * 0.2)  # Adjust the size as needed
+    aspect_ratio = camera_image.shape[1] / camera_image.shape[0]
+    camera_width = int(camera_height * aspect_ratio)
+    camera_resized = cv2.resize(camera_image, (camera_width, camera_height))
+
+    # Calculate position to center the camera image
+    x_offset = (frame_width - camera_width) // 2
+    y_offset = (frame_height - camera_height) // 2
+    y_offset = int(y_offset - (frame_height * 0.4))
+    y_offset = max(0, min(frame_height - camera_height, y_offset))
+
+
+    # Overlay camera image on raw_feed_image
+    for c in range(3):
+        alpha_s = camera_resized[:, :, 3] / 255.0
+        alpha_l = 1.0 - alpha_s
+        for c in range(3):
+            raw_feed_image[y_offset:y_offset+camera_height,
+                        x_offset:x_offset+camera_width, c] = (
+                alpha_s * camera_resized[:, :, c] +
+                alpha_l * raw_feed_image[y_offset:y_offset+camera_height,
+                                        x_offset:x_offset+camera_width, c]
+            )
 
     if results.multi_face_landmarks:
         # Process the first detected face
@@ -196,23 +376,22 @@ while True:
             weighted_y_sum += vector_y
 
         overall_angle = math.degrees(math.atan2(weighted_y_sum, weighted_x_sum))
-        #print(f"Overall Lighting Angle: {overall_angle:.2f}°")
 
         # Draw the lighting intensity angle
         try:
             arrow_length = 50
             arrow_end_x = int(mesh_center_x + arrow_length * math.cos(math.radians(overall_angle)))
             arrow_end_y = int(mesh_center_y + arrow_length * math.sin(math.radians(overall_angle)))
+            cv2.arrowedLine(
+                annotated_image,
+                (mesh_center_x, mesh_center_y),
+                (arrow_end_x, arrow_end_y),
+                (255, 255, 0),
+                2,
+                tipLength=0.2
+            )
         except:
             pass
-        cv2.arrowedLine(
-            annotated_image,
-            (mesh_center_x, mesh_center_y),
-            (arrow_end_x, arrow_end_y),
-            (255, 255, 0),
-            2,
-            tipLength=0.2
-        )
 
         # Calculate face bounding box size and percentage of screen
         face_width = x_max - x_min
@@ -230,7 +409,7 @@ while True:
         cv2.rectangle(annotated_image, (x_min, y_min), (x_max, y_max), rectangle_color, 2)
 
         current_time = time.time()
-
+        
         if rectangle_color == (0, 255, 0):
             if green_rectangle_start_time is None:
                 green_rectangle_start_time = current_time
@@ -346,6 +525,8 @@ while True:
     if flash_image.shape[:2] != raw_feed_image.shape[:2]:
         flash_image = cv2.resize(flash_image, (raw_feed_image.shape[1], raw_feed_image.shape[0]))
 
+    trigger = False
+
     if flash_alpha > 0:
         for c in range(3):
             raw_feed_image[:, :, c] = (
@@ -354,7 +535,9 @@ while True:
             annotated_image[:, :, c] = (
                 flash_alpha * flash_image[:, :, c] + (1 - flash_alpha) * annotated_image[:, :, c]
             )
-        flash_alpha -= 0.1
+            trigger = True
+            all_conditions_met = True
+
     current_time = time.time()
     if dot_x is None and dot_y is None:
         if arrows_not_present_start_time is None:
@@ -367,10 +550,27 @@ while True:
             good_angle_start_time = current_time
     else:
         good_angle_start_time = None
+    if not trigger:
+        all_conditions_met = (green_rectangle_start_time is not None and
+                            arrows_not_present_start_time is not None and
+                            good_angle_start_time is not None)
 
-    all_conditions_met = (green_rectangle_start_time is not None and
-                          arrows_not_present_start_time is not None and
-                          good_angle_start_time is not None)
+        # Resize the x or check image
+    icon_height = int(frame_height * 0.1)  # 10% of frame height
+    aspect_ratio = x_image.shape[1] / x_image.shape[0]
+    icon_width = int(icon_height * aspect_ratio)
+
+
+
+    if all_conditions_met:
+        icon = cv2.resize(check_image, (icon_width, icon_height))
+    else:
+        icon = cv2.resize(x_image, (icon_width, icon_height))
+
+    # Overlay the icon on both raw_feed_image and annotated_image
+    raw_feed_image = overlay_bottom_right(raw_feed_image, icon)
+    annotated_image = overlay_bottom_right(annotated_image, icon)
+
 
     if cv2.waitKey(1) & 0xFF == ord("y"):
         runer = True
@@ -389,22 +589,47 @@ while True:
         
         if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
             countdown_started = True
+            trigger = True
             countdown_start_time = current_time
+
+    trimber = False
 
     if countdown_started and not countdown_done:
         elapsed_time = current_time - countdown_start_time
         remaining_time = max(0, countdown_time - int(elapsed_time))
+        
+        if remaining_time > 0 and remaining_time <= 3:
+            countdown_image = countdown_images[remaining_time]
+            
+            # Resize the countdown image
+            countdown_height = int(frame_height * 0.4)
+            aspect_ratio = countdown_image.shape[1] / countdown_image.shape[0]
+            countdown_width = int(countdown_height * aspect_ratio)
+            countdown_resized = cv2.resize(countdown_image, (countdown_width, countdown_height))
+            
+            # Calculate position to center the countdown image
+            x_offset = (frame_width - countdown_width) // 2
+            y_offset = (frame_height - countdown_height) // 2
+            
+            # Overlay countdown image on raw_feed_image
+            for c in range(3):
+                alpha_s = countdown_resized[:, :, 3] / 255.0
+                alpha_l = 1.0 - alpha_s
+                for c in range(3):
+                    raw_feed_image[y_offset:y_offset+countdown_height, 
+                                x_offset:x_offset+countdown_width, c] = (
+                        alpha_s * countdown_resized[:, :, c] + 
+                        alpha_l * raw_feed_image[y_offset:y_offset+countdown_height, 
+                                                x_offset:x_offset+countdown_width, c]
+                    )
+        
+        if remaining_time == 0:
+            countdown_done = True
+            countdown_started = False
+            screencap = frame.copy()
+            flash_alpha = 1.0
 
-        cv2.putText(
-            annotated_image,
-            str(remaining_time),
-            (frame_width // 2 - 30, frame_height // 2),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            2,
-            (0, 255, 255),
-            3,
-        )
-
+        trimber = False
         if remaining_time == 0:
             countdown_done = True
             countdown_started = False
@@ -418,17 +643,28 @@ while True:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"pictures/screencap_{timestamp}.png"
             screencap = upscale(screencap, 2)
-            
+            screencap = cv2.cvtColor(screencap, cv2.COLOR_BGR2RGB) 
+            screencap = crop_image(screencap)  # Crop the image
             # Save the screencap
             cv2.imwrite(filename, screencap)
             print(f"Screencap saved as {filename}")
 
+            actual_image = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
+            trimber = True
+        
+
+    if fog:
+        raw_feed_image = overlay_cent(raw_feed_image, actual_image, 0.7)
     cv2.imshow("Asennotated Feed", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-     
+    if fog:
+        raw_feed_image = overlay_center(raw_feed_image, polaroid_image)
     max_width, max_height = 1920, 1080  # Adjust these values based on your display resolution
     padded_raw_feed = create_padded_image(cv2.cvtColor(raw_feed_image, cv2.COLOR_RGB2BGR), max_width, max_height)
     cv2.imshow("Raw Feed", padded_raw_feed)
     cv2.setWindowProperty("Raw Feed", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    if trimber:
+        fog = True
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
