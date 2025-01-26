@@ -1,5 +1,5 @@
 # [LooksMaxxer9000](https://devpost.com/software/looksmaxxer9000)
-Demo: https://www.youtube.com/watch?v=7ifksLGtCok
+Demo: https://youtu.be/7AHNPxOvk7k
 ## Inspiration 💡
 
 A few weeks ago, Ava stumbled upon an [interesting video](https://youtu.be/3M8ZxQiK4qo?si=9wvzmMxoS2aInDcQ) in her YouTube recommendations. It delved into how the meanings of words and phrases evolve – or even lose their original context – as they morph into viral memes in pop culture. For example, terms like "sigma," "pilled," and "maxxer" have taken on entirely new lives in online spaces, far removed from their origins in Incel communities 🤨
@@ -36,4 +36,4 @@ People using our app to take their looksmaxxing to the max 🗣️
 
 Lastly, sorry Helena for our horrendous use of your cute kawaii illustrations 🥺
 
-![Team Photo](https://drive.google.com/drive-viewer/AKGpihaKdvTHqAy8OghWMqXDg-oualQFsZEFzv0sarfhCdunGVbBMm53sEKWhAiPEgpy-Xm0mxdud5P7CW2GFcyfIRZ2kqeQzHmGrDU=s1600-rw-v1)
+![Team Photo](https://drive.google.com/uc?export=download&id=1fSbgLySWwJIW04GIUY3xM1PV1aaNxXTe)
