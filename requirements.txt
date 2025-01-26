@@ -4,3 +4,4 @@ streamlit
 numpy
 mediapipe
 torch
+streamlit-webrtc
