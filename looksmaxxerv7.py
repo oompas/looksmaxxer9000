@@ -24,7 +24,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 )
 
 # Start video capture from the second webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Error: Could not open webcam.")
     exit()
@@ -80,8 +80,8 @@ def create_padded_image(image, max_width, max_height):
     h, w = image.shape[:2]
     aspect_ratio = w / h
     if w > h:
-        new_width = min(w, max_width)
-        new_height = int(new_width / aspect_ratio)
+        new_width = min(w, max_width*50)
+        new_height = 1440
         if new_height > max_height:
             new_height = max_height
             new_width = int(new_height * aspect_ratio)

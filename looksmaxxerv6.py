@@ -172,6 +172,7 @@ while True:
             weighted_y_sum += vector_y
 
         overall_angle = math.degrees(math.atan2(weighted_y_sum, weighted_x_sum))
+        #sundial area
         #print(f"Overall Lighting Angle: {overall_angle:.2f}°")
 
         # Draw the lighting intensity angle
