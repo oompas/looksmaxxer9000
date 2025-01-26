@@ -18,30 +18,27 @@ def jpg_to_png(input_path, output_path):
     print(f"Converted {input_path} to {output_path}")
 def crop_image(image):
     """
-    Crops 20% off each side of the input image, then resizes it to be 40% more narrow.
+    Crops 20% of the width (10% from each side) of the input image without altering the aspect ratio.
 
     Parameters:
         image (numpy.ndarray): Input image.
 
     Returns:
-        numpy.ndarray: Cropped and resized image.
+        numpy.ndarray: Horizontally cropped image.
     """
     height, width = image.shape[:2]
 
-    # Calculate cropping dimensions (20% from each side)
+    # Calculate horizontal cropping dimensions (10% from each side)
     crop_x = int(0.2 * width)
-    crop_y = int(0.2 * height)
 
-    # Perform cropping
-    cropped_image = image[crop_y:height - crop_y, crop_x:width - crop_x]
+    # Perform cropping (only horizontal)
+    cropped_image = image[:, crop_x:width - crop_x]
 
-    # Calculate new width (60% of the cropped width)
-    new_width = int(cropped_image.shape[1] * 0.6)
+    return cropped_image
 
-    # Resize the image to be 40% more narrow
-    resized_image = cv2.resize(cropped_image, (new_width, cropped_image.shape[0]))
 
-    return resized_image
+
+
 
 
 # Example usage
@@ -146,7 +143,21 @@ def overlay_bottom_right(background, overlay, padding=10):
     
     return background
 
-
+def overlay_bottom_left(background, overlay, padding=10):
+    h, w = overlay.shape[:2]
+    bg_h, bg_w = background.shape[:2]
+    
+    x = padding
+    y = bg_h - h - padding
+    
+    alpha_s = overlay[:, :, 3] / 255.0
+    alpha_l = 1.0 - alpha_s
+    
+    for c in range(3):
+        background[y:y+h, x:x+w, c] = (alpha_s * overlay[:, :, c] + 
+                                       alpha_l * background[y:y+h, x:x+w, c])
+    
+    return background
 
 def switch_blue_red_channels(image_path, output_path):
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
@@ -162,6 +173,8 @@ def switch_blue_red_channels(image_path, output_path):
 
 # Switch channels for overlay images
 switch_blue_red_channels("graphics/gandalf.png", "graphics/gandalf_switched.png")
+switch_blue_red_channels("graphics/light.png", "graphics/lighta.png")
+switch_blue_red_channels("graphics/nolight.png", "graphics/nolighta.png")
 switch_blue_red_channels("graphics/left_arrow.png", "graphics/left_arrow_switched.png")
 switch_blue_red_channels("graphics/right_arrow.png", "graphics/right_arrow_switched.png")
 switch_blue_red_channels("graphics/up_arrow.png", "graphics/up_arrow_switched.png")
@@ -173,6 +186,8 @@ switch_blue_red_channels("graphics/check.png", "graphics/checka.png")
 switch_blue_red_channels("graphics/camera.png", "graphics/camera_switched.png")
 camera_image = cv2.imread("graphics/camera_switched.png", cv2.IMREAD_UNCHANGED)
 polaroid_image = cv2.imread("graphics/polaroida.png", cv2.IMREAD_UNCHANGED)
+nolight = cv2.imread("graphics/nolighta.png", cv2.IMREAD_UNCHANGED)
+light = cv2.imread("graphics/lighta.png", cv2.IMREAD_UNCHANGED)
 if camera_image is None:
     print("Error: Could not load camera image.")
     exit()
@@ -182,7 +197,30 @@ if camera_image.shape[2] != 4:
 cv2.imread("graphics/camera_image.png", cv2.IMREAD_UNCHANGED)
 x_image = cv2.imread("graphics/xa.png", cv2.IMREAD_UNCHANGED)
 check_image = cv2.imread("graphics/checka.png", cv2.IMREAD_UNCHANGED)
+move_arrow = cv2.imread("graphics/move_arrow.png", cv2.IMREAD_UNCHANGED)
+back_arrow = cv2.imread("graphics/back_arrow.png", cv2.IMREAD_UNCHANGED)
 
+if move_arrow is None or back_arrow is None:
+    print("Error: Could not load move_arrow.png or back_arrow.png")
+    exit()
+if move_arrow.shape[2] != 4 or back_arrow.shape[2] != 4:
+    print("Error: move_arrow.png and back_arrow.png must have an alpha channel.")
+    exit()
+
+def overlay_top_left(background, overlay, x_offset=10, y_offset=10):
+    h, w = overlay.shape[:2]
+    
+    y1, y2 = y_offset, y_offset + h
+    x1, x2 = x_offset, x_offset + w
+
+    alpha_s = overlay[:, :, 3] / 255.0
+    alpha_l = 1.0 - alpha_s
+
+    for c in range(3):
+        background[y1:y2, x1:x2, c] = (alpha_s * overlay[:, :, c] + 
+                                       alpha_l * background[y1:y2, x1:x2, c])
+    
+    return background
 
 # Load countdown images
 countdown_images = {
@@ -376,8 +414,18 @@ while True:
             weighted_y_sum += vector_y
 
         overall_angle = math.degrees(math.atan2(weighted_y_sum, weighted_x_sum))
-
         # Draw the lighting intensity angle
+                # Resize the x or check image
+        icon_height = int(frame_height * 0.1)  # 10% of frame height
+        aspect_ratio = x_image.shape[1] / x_image.shape[0]
+        icon_width = int(icon_height * aspect_ratio)
+
+        if overall_angle < -75 and overall_angle > -115:
+            twoicon = cv2.resize(light, (icon_width, icon_height))
+        else:
+            twoicon = cv2.resize(nolight, (icon_width, icon_height))
+        
+        raw_feed_image = overlay_bottom_left(raw_feed_image, twoicon)
         try:
             arrow_length = 50
             arrow_end_x = int(mesh_center_x + arrow_length * math.cos(math.radians(overall_angle)))
@@ -460,19 +508,22 @@ while True:
             arrow_resized = arrow_resized[:arrow_y_end - arrow_y_start, :arrow_x_end - arrow_x_start]
             arrow_alpha = arrow_resized[:, :, 3] / 255.0
 
-            for c in range(3):
-                raw_feed_image[
-                    arrow_y_start:arrow_y_start + arrow_resized.shape[0],
-                    arrow_x_start:arrow_x_start + arrow_resized.shape[1],
-                    c
-                ] = (
-                    arrow_alpha * arrow_resized[:, :, c] +
-                    (1 - arrow_alpha) * raw_feed_image[
+            try:
+                for c in range(3):
+                    raw_feed_image[
                         arrow_y_start:arrow_y_start + arrow_resized.shape[0],
                         arrow_x_start:arrow_x_start + arrow_resized.shape[1],
                         c
-                    ]
-                )
+                    ] = (
+                        arrow_alpha * arrow_resized[:, :, c] +
+                        (1 - arrow_alpha) * raw_feed_image[
+                            arrow_y_start:arrow_y_start + arrow_resized.shape[0],
+                            arrow_x_start:arrow_x_start + arrow_resized.shape[1],
+                            c
+                        ]
+                    )
+            except:
+                pass
 
         left_eye = face_landmarks.landmark[33]
         right_eye = face_landmarks.landmark[263]
@@ -486,6 +537,25 @@ while True:
         head_angle_text = f"Angle: {head_angle:.2f}"
         if -2.5 <= head_angle <= 2.5:
             head_angle_text += " Good"
+
+        # Resize the move and back arrow images
+        arrow_height = int(frame_height * 0.10)  # 5% of frame height
+        move_aspect_ratio = move_arrow.shape[1] / move_arrow.shape[0]
+        back_aspect_ratio = back_arrow.shape[1] / back_arrow.shape[0]
+        move_arrow_width = int(arrow_height * move_aspect_ratio)
+        back_arrow_width = int(arrow_height * back_aspect_ratio)
+
+        move_arrow_resized = cv2.resize(move_arrow, (move_arrow_width, arrow_height))
+        back_arrow_resized = cv2.resize(back_arrow, (back_arrow_width, arrow_height))
+
+        # Overlay the move arrow image on raw_feed_image
+        if face_percentage < 15:
+            raw_feed_image = overlay_top_left(raw_feed_image, move_arrow_resized, x_offset=10, y_offset=10)
+
+        # Overlay the back arrow image on raw_feed_image
+        if face_percentage > 24:
+            raw_feed_image = overlay_top_left(raw_feed_image, back_arrow_resized, x_offset=10 + move_arrow_width + 10, y_offset=10)
+
 
         cv2.putText(
             annotated_image,
@@ -560,8 +630,6 @@ while True:
     aspect_ratio = x_image.shape[1] / x_image.shape[0]
     icon_width = int(icon_height * aspect_ratio)
 
-
-
     if all_conditions_met:
         icon = cv2.resize(check_image, (icon_width, icon_height))
     else:
@@ -574,19 +642,19 @@ while True:
 
     if cv2.waitKey(1) & 0xFF == ord("y"):
         runer = True
-
-    if all_conditions_met and not runer:
-        elapsed_time = min(current_time - green_rectangle_start_time,
-                           current_time - arrows_not_present_start_time,
-                           current_time - good_angle_start_time)
-        
-
-        if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
-            countdown_started = True
-            countdown_start_time = current_time
-    elif runer:
-        elapsed_time = current_time
-        
+    try:
+        if all_conditions_met and not runer:
+            elapsed_time = min(current_time - green_rectangle_start_time,
+                            current_time - arrows_not_present_start_time,
+                            current_time - good_angle_start_time)
+            if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
+                countdown_started = True
+                countdown_start_time = current_time
+        elif runer:
+            elapsed_time = current_time
+    except:
+        pass
+            
         if elapsed_time >= conditions_met_duration and not countdown_started and not countdown_done:
             countdown_started = True
             trigger = True
